@@ -354,9 +354,9 @@
 
         <!-- Info Text -->
         <p class="info-text">
-            Model: PyTorch Neural Network<br>
-            Accuracy: 97.92% on test set<br>
-            Input: 28×28 grayscale images
+            Model: Improved PyTorch Neural Network<br>
+            Accuracy: 98.78% on test set<br>
+            Architecture: 784 → 512 → 256 → 128 → 64 → 10
         </p>
     </div>
 
@@ -468,6 +468,11 @@
                 return output;
             }
 
+            // Batch normalization: apply learned scale and shift
+            batchNorm(input, scale, shift) {
+                return input.map((x, i) => x * scale[i] + shift[i]);
+            }
+
             // Forward pass through the network
             predict(input) {
                 if (!this.loaded || !this.weights) {
@@ -478,28 +483,34 @@
                 try {
                     let x = input;
 
-                    // Layer 1: Dense(784 -> 128) + ReLU
+                    // Layer 1: Dense(784 -> 512) + ReLU
                     const w1 = this.weights['fc1.weight'];
                     const b1 = this.weights['fc1.bias'];
                     x = this.denseLayer(x, w1, b1);
                     x = x.map(v => this.relu(v));
 
-                    // Layer 2: Dense(128 -> 64) + ReLU
+                    // Layer 2: Dense(512 -> 256) + ReLU
                     const w2 = this.weights['fc2.weight'];
                     const b2 = this.weights['fc2.bias'];
                     x = this.denseLayer(x, w2, b2);
                     x = x.map(v => this.relu(v));
 
-                    // Layer 3: Dense(64 -> 32) + ReLU
+                    // Layer 3: Dense(256 -> 128) + ReLU
                     const w3 = this.weights['fc3.weight'];
                     const b3 = this.weights['fc3.bias'];
                     x = this.denseLayer(x, w3, b3);
                     x = x.map(v => this.relu(v));
 
-                    // Layer 4: Dense(32 -> 10) + Softmax
+                    // Layer 4: Dense(128 -> 64) + ReLU
                     const w4 = this.weights['fc4.weight'];
                     const b4 = this.weights['fc4.bias'];
                     x = this.denseLayer(x, w4, b4);
+                    x = x.map(v => this.relu(v));
+
+                    // Layer 5: Dense(64 -> 10) + Softmax
+                    const w5 = this.weights['fc5.weight'];
+                    const b5 = this.weights['fc5.bias'];
+                    x = this.denseLayer(x, w5, b5);
                     x = this.softmax(x);
 
                     return x;
