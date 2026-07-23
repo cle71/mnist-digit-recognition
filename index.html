@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Handwriting Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .canvas-wrapper {
+            background: #f5f5f5;
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto;
+            touch-action: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-predict {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+            max-width: 150px;
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-clear {
+            background: #ff6b6b;
+            color: white;
+            flex: 1;
+            max-width: 150px;
+        }
+
+        .btn-clear:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .result-section {
+            display: none;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .prediction {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .confidence {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .confidence-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .confidence-bar {
+            background: #ddd;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .confidence-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .probabilities {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .prob-title {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .prob-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .prob-digit {
+            min-width: 25px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .prob-bar-container {
+            flex: 1;
+            background: #e0e0e0;
+            height: 6px;
+            border-radius: 3px;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .prob-bar-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .prob-percent {
+            min-width: 45px;
+            text-align: right;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✏️ MNIST Handwriting Recognition</h1>
+        <p class="subtitle">Draw a digit (0-9) in the canvas below</p>
+
+        <div class="canvas-wrapper">
+            <canvas id="canvas" width="280" height="280"></canvas>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-predict" onclick="predictDigit()">Predict</button>
+            <button class="btn-clear" onclick="clearCanvas()">Clear</button>
+        </div>
+
+        <div class="loading" id="loading">Loading model and analyzing...</div>
+
+        <div class="result-section" id="resultSection">
+            <div class="prediction" id="prediction">-</div>
+            <div class="confidence">
+                <span class="confidence-label">Confidence</span>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceBar"></div>
+                </div>
+                <span id="confidenceText">0%</span>
+            </div>
+            <div class="probabilities">
+                <span class="prob-title">All Predictions</span>
+                <div id="probList"></div>
+            </div>
+        </div>
+
+        <p class="info-text">Model: PyTorch Neural Network trained on real MNIST dataset<br>Test Accuracy: 97.92%</p>
+    </div>
+
+    <script>
+        // Neural Network Model Class
+        class NeuralNetwork {
+            constructor() {
+                this.weights = null;
+                this.loaded = false;
+            }
+
+            async load() {
+                try {
+                    const response = await fetch('model/tfjs_model/model.json');
+                    const data = await response.json();
+                    this.weights = data.weights;
+                    this.loaded = true;
+                    console.log('Model loaded successfully!');
+                    console.log('fc1.weight shape:', this.weights['fc1.weight'].length, 'x', this.weights['fc1.weight'][0].length);
+                    return true;
+                } catch (error) {
+                    console.error('Error loading model:', error);
+                    return false;
+                }
+            }
+
+            // Activation functions
+            relu(x) {
+                return Math.max(0, x);
+            }
+
+            softmax(arr) {
+                const maxVal = Math.max(...arr);
+                const exps = arr.map(x => Math.exp(x - maxVal));
+                const sumExp = exps.reduce((a, b) => a + b, 0);
+                return exps.map(x => x / sumExp);
+            }
+
+            // Dense layer forward pass
+            denseLayer(input, weights, bias) {
+                const output = [];
+                const numOutputs = weights.length;
+                const numInputs = weights[0].length;
+
+                for (let i = 0; i < numOutputs; i++) {
+                    let sum = bias[i];
+                    for (let j = 0; j < numInputs; j++) {
+                        sum += input[j] * weights[i][j];
+                    }
+                    output.push(sum);
+                }
+                return output;
+            }
+
+            // Forward pass through network
+            predict(input) {
+                if (!this.loaded || !this.weights) {
+                    console.error('Model not loaded');
+                    return null;
+                }
+
+                let x = input;
+
+                // Layer 1: Dense(784 -> 128) + ReLU
+                const w1 = this.weights['fc1.weight'];
+                const b1 = this.weights['fc1.bias'];
+                x = this.denseLayer(x, w1, b1);
+                x = x.map(v => this.relu(v));
+
+                // Layer 2: Dense(128 -> 64) + ReLU
+                const w2 = this.weights['fc2.weight'];
+                const b2 = this.weights['fc2.bias'];
+                x = this.denseLayer(x, w2, b2);
+                x = x.map(v => this.relu(v));
+
+                // Layer 3: Dense(64 -> 32) + ReLU
+                const w3 = this.weights['fc3.weight'];
+                const b3 = this.weights['fc3.bias'];
+                x = this.denseLayer(x, w3, b3);
+                x = x.map(v => this.relu(v));
+
+                // Layer 4: Dense(32 -> 10) + Softmax
+                const w4 = this.weights['fc4.weight'];
+                const b4 = this.weights['fc4.bias'];
+                x = this.denseLayer(x, w4, b4);
+                x = this.softmax(x);
+
+                return x;
+            }
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        const model = new NeuralNetwork();
+
+        // Canvas drawing setup
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('resultSection').classList.remove('show');
+        }
+
+        // Process image: convert canvas to 28x28 grayscale
+        function preprocessImage() {
+            // Get canvas image data
+            const imageData = ctx.getImageData(0, 0, 280, 280);
+            const data = imageData.data;
+
+            // Convert RGBA to 28x28 grayscale (0-1 range)
+            const resized = new Array(28 * 28).fill(0);
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const gray = (r + g + b) / 3 / 255;
+
+                // Current pixel position in 280x280
+                const pixelIndex = i / 4;
+                const y = Math.floor(pixelIndex / 280);
+                const x = pixelIndex % 280;
+
+                // Map to 28x28
+                const newX = Math.floor(x / 10);
+                const newY = Math.floor(y / 10);
+
+                if (newX < 28 && newY < 28) {
+                    const newIndex = newY * 28 + newX;
+                    // Take maximum to preserve stroke
+                    resized[newIndex] = Math.max(resized[newIndex], gray);
+                }
+            }
+
+            return resized;
+        }
+
+        function predictDigit() {
+            if (!model.loaded) {
+                alert('Model is not loaded yet. Please wait a moment and try again.');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('show');
+
+            // Process image
+            const input = preprocessImage();
+
+            // Make prediction
+            const probabilities = model.predict(input);
+
+            if (!probabilities) {
+                alert('Error making prediction');
+                document.getElementById('loading').classList.remove('show');
+                return;
+            }
+
+            // Find the predicted digit and confidence
+            let maxProb = 0;
+            let predictedDigit = 0;
+            for (let i = 0; i < probabilities.length; i++) {
+                if (probabilities[i] > maxProb) {
+                    maxProb = probabilities[i];
+                    predictedDigit = i;
+                }
+            }
+
+            // Display results
+            displayResults(predictedDigit, maxProb, probabilities);
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function displayResults(digit, confidence, probabilities) {
+            document.getElementById('prediction').textContent = digit;
+            document.getElementById('confidenceText').textContent = (confidence * 100).toFixed(1) + '%';
+            document.getElementById('confidenceBar').style.width = (confidence * 100) + '%';
+
+            // Display all probabilities
+            let probHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const prob = probabilities[i];
+                const percentage = (prob * 100).toFixed(1);
+                probHTML += `
+                    <div class="prob-item">
+                        <div class="prob-digit">${i}</div>
+                        <div class="prob-bar-container">
+                            <div class="prob-bar-fill" style="width: ${prob * 100}%"></div>
+                        </div>
+                        <div class="prob-percent">${percentage}%</div>
+                    </div>
+                `;
+            }
+            document.getElementById('probList').innerHTML = probHTML;
+
+            document.getElementById('resultSection').classList.add('show');
+        }
+
+        // Load model when page loads
+        async function initModel() {
+            document.getElementById('loading').classList.add('show');
+            const success = await model.load();
+            if (!success) {
+                document.getElementById('loading').textContent = 'Error loading model. Make sure the model has been trained.';
+            } else {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        window.addEventListener('load', initModel);
+    </script>
+</body>
+</html>

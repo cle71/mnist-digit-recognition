@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Handwriting Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .canvas-section {
+            margin-bottom: 30px;
+        }
+
+        .canvas-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .canvas-container {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: crosshair;
+            width: 280px;
+            height: 280px;
+            touch-action: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-predict {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-predict:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-predict:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-predict:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-clear:hover {
+            background: #e8e8e8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-clear:active {
+            transform: translateY(0);
+        }
+
+        .result-section {
+            display: none;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .prediction-digit {
+            font-size: 64px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 16px;
+        }
+
+        .confidence-section {
+            margin-bottom: 20px;
+        }
+
+        .confidence-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+            font-weight: 600;
+        }
+
+        .confidence-bar {
+            background: rgba(255, 255, 255, 0.5);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .confidence-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .confidence-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .probabilities {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .prob-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .prob-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .prob-item {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .prob-digit {
+            font-weight: 700;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .prob-bar-small {
+            background: rgba(0, 0, 0, 0.1);
+            height: 4px;
+            border-radius: 2px;
+            margin-bottom: 4px;
+            overflow: hidden;
+        }
+
+        .prob-bar-fill-small {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        .prob-percent-small {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 14px;
+            display: none;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #667eea;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+
+        .info-link {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .info-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>✏️ Digit Recognition</h1>
+            <p class="subtitle">Draw a digit (0-9) below</p>
+        </div>
+
+        <!-- Drawing Canvas -->
+        <div class="canvas-section">
+            <label class="canvas-label">Drawing Area</label>
+            <div class="canvas-container">
+                <canvas id="drawingCanvas" width="280" height="280"></canvas>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="controls">
+            <button class="btn-predict" id="predictBtn" onclick="predictDigit()">
+                Predict
+            </button>
+            <button class="btn-clear" onclick="clearCanvas()">
+                Clear
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading" id="loading">
+            <span class="spinner"></span>Analyzing drawing...
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section" id="resultSection">
+            <div class="prediction-digit" id="predictionDigit">-</div>
+
+            <div class="confidence-section">
+                <span class="confidence-label">Confidence</span>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceBar"></div>
+                </div>
+                <span class="confidence-value" id="confidenceValue">0%</span>
+            </div>
+
+            <div class="probabilities">
+                <span class="prob-title">All Predictions</span>
+                <div class="prob-grid" id="probGrid"></div>
+            </div>
+        </div>
+
+        <!-- Info Text -->
+        <p class="info-text">
+            Model: PyTorch Neural Network<br>
+            Accuracy: 97.92% on test set<br>
+            Input: 28×28 grayscale images
+        </p>
+    </div>
+
+    <script>
+        // Get canvas element and context
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // Canvas drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.closePath();
+        }
+
+        // Touch support for mobile devices
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(
+                e.type === 'touchstart' ? 'mousedown' :
+                e.type === 'touchmove' ? 'mousemove' : 'mouseup',
+                {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                }
+            );
+            canvas.dispatchEvent(mouseEvent);
+        }
+
+        // Clear canvas
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('resultSection').classList.remove('show');
+        }
+
+        // Neural Network Model Class
+        class NeuralNetworkModel {
+            constructor() {
+                this.weights = null;
+                this.loaded = false;
+            }
+
+            // Load model from JSON file
+            async load() {
+                try {
+                    const response = await fetch('../model/tfjs_model/model.json');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    this.weights = data.weights;
+                    this.loaded = true;
+                    console.log('✓ Model loaded successfully');
+                    return true;
+                } catch (error) {
+                    console.error('✗ Error loading model:', error);
+                    return false;
+                }
+            }
+
+            // ReLU activation function
+            relu(x) {
+                return Math.max(0, x);
+            }
+
+            // Softmax activation function
+            softmax(arr) {
+                const maxVal = Math.max(...arr);
+                const exps = arr.map(x => Math.exp(x - maxVal));
+                const sumExp = exps.reduce((a, b) => a + b, 0);
+                return exps.map(x => x / sumExp);
+            }
+
+            // Dense layer: output = input @ weights.T + bias
+            denseLayer(input, weights, bias) {
+                const output = [];
+                const numOutputs = weights.length;
+
+                for (let i = 0; i < numOutputs; i++) {
+                    let sum = bias[i];
+                    for (let j = 0; j < input.length; j++) {
+                        sum += input[j] * weights[i][j];
+                    }
+                    output.push(sum);
+                }
+                return output;
+            }
+
+            // Forward pass through the network
+            predict(input) {
+                if (!this.loaded || !this.weights) {
+                    console.error('Model not loaded');
+                    return null;
+                }
+
+                try {
+                    let x = input;
+
+                    // Layer 1: Dense(784 -> 128) + ReLU
+                    const w1 = this.weights['fc1.weight'];
+                    const b1 = this.weights['fc1.bias'];
+                    x = this.denseLayer(x, w1, b1);
+                    x = x.map(v => this.relu(v));
+
+                    // Layer 2: Dense(128 -> 64) + ReLU
+                    const w2 = this.weights['fc2.weight'];
+                    const b2 = this.weights['fc2.bias'];
+                    x = this.denseLayer(x, w2, b2);
+                    x = x.map(v => this.relu(v));
+
+                    // Layer 3: Dense(64 -> 32) + ReLU
+                    const w3 = this.weights['fc3.weight'];
+                    const b3 = this.weights['fc3.bias'];
+                    x = this.denseLayer(x, w3, b3);
+                    x = x.map(v => this.relu(v));
+
+                    // Layer 4: Dense(32 -> 10) + Softmax
+                    const w4 = this.weights['fc4.weight'];
+                    const b4 = this.weights['fc4.bias'];
+                    x = this.denseLayer(x, w4, b4);
+                    x = this.softmax(x);
+
+                    return x;
+                } catch (error) {
+                    console.error('Error during prediction:', error);
+                    return null;
+                }
+            }
+        }
+
+        // Image preprocessing: canvas to 28x28 normalized array
+        function preprocessCanvasImage() {
+            // Get image data from canvas
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelData = imageData.data;
+
+            // Create 28x28 normalized grayscale array
+            const processed = new Array(28 * 28).fill(0);
+
+            // Map 280x280 pixels to 28x28 grid
+            for (let i = 0; i < pixelData.length; i += 4) {
+                // Get pixel index
+                const pixelIndex = i / 4;
+                const y = Math.floor(pixelIndex / 280);
+                const x = pixelIndex % 280;
+
+                // Convert RGBA to grayscale (0-1)
+                const r = pixelData[i];
+                const g = pixelData[i + 1];
+                const b = pixelData[i + 2];
+                const gray = (r + g + b) / 3 / 255;
+
+                // Map to 28x28 position
+                const newX = Math.floor(x / 10);
+                const newY = Math.floor(y / 10);
+
+                if (newX < 28 && newY < 28) {
+                    const index = newY * 28 + newX;
+                    // Take maximum to preserve stroke visibility
+                    processed[index] = Math.max(processed[index], gray);
+                }
+            }
+
+            return processed;
+        }
+
+        // Display prediction results
+        function displayResults(digit, confidence, probabilities) {
+            // Show prediction digit
+            document.getElementById('predictionDigit').textContent = digit;
+
+            // Show confidence
+            const confidencePercent = (confidence * 100).toFixed(1);
+            document.getElementById('confidenceValue').textContent = confidencePercent + '%';
+            document.getElementById('confidenceBar').style.width = confidencePercent + '%';
+
+            // Show all probabilities in grid
+            const probGrid = document.getElementById('probGrid');
+            probGrid.innerHTML = '';
+
+            for (let i = 0; i < 10; i++) {
+                const prob = probabilities[i];
+                const percentage = (prob * 100).toFixed(0);
+
+                const item = document.createElement('div');
+                item.className = 'prob-item';
+                item.innerHTML = `
+                    <div class="prob-digit">${i}</div>
+                    <div class="prob-bar-small">
+                        <div class="prob-bar-fill-small" style="width: ${prob * 100}%"></div>
+                    </div>
+                    <div class="prob-percent-small">${percentage}%</div>
+                `;
+                probGrid.appendChild(item);
+            }
+
+            // Show result section
+            document.getElementById('resultSection').classList.add('show');
+        }
+
+        // Prediction function
+        async function predictDigit() {
+            if (!model.loaded) {
+                alert('Model is still loading. Please wait a moment.');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultSection').classList.remove('show');
+
+            try {
+                // Preprocess image
+                const input = preprocessCanvasImage();
+
+                // Make prediction
+                const probabilities = model.predict(input);
+
+                if (!probabilities) {
+                    alert('Error making prediction');
+                    document.getElementById('loading').classList.remove('show');
+                    return;
+                }
+
+                // Find predicted digit and confidence
+                let maxProb = 0;
+                let predictedDigit = 0;
+
+                for (let i = 0; i < probabilities.length; i++) {
+                    if (probabilities[i] > maxProb) {
+                        maxProb = probabilities[i];
+                        predictedDigit = i;
+                    }
+                }
+
+                // Display results
+                displayResults(predictedDigit, maxProb, probabilities);
+            } catch (error) {
+                console.error('Prediction error:', error);
+                alert('Error during prediction');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        // Initialize model on page load
+        const model = new NeuralNetworkModel();
+
+        async function initializeApp() {
+            console.log('Initializing application...');
+            const success = await model.load();
+            if (!success) {
+                console.warn('⚠️ Model failed to load from ../model/tfjs_model/model.json');
+                document.getElementById('predictBtn').disabled = true;
+                alert('Model could not be loaded. Make sure the parent directory has trained model files.');
+            } else {
+                console.log('✓ Application ready');
+                document.getElementById('predictBtn').disabled = false;
+            }
+        }
+
+        // Canvas event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch events
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', handleTouch);
+
+        // Initialize on load
+        window.addEventListener('load', initializeApp);
+
+        console.log('Handwriting Recognition App - Script Loaded');
+    </script>
+</body>
+</html>

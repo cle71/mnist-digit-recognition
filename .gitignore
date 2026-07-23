@@ -1,0 +1,32 @@
+# Data files
+data/
+*.gz
+*.ubyte
+
+# Model files (too large for GitHub)
+model/mnist_model.pth
+model/tfjs_model/model.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+test_*.py
